@@ -3,14 +3,15 @@ var router = express.Router();
 let { postUserValidator, validateResult } = require('../utils/validatorHandler')
 let userController = require('../controllers/users')
 
-let { checkLogin } = require('../utils/authHandler.js')
+
+let { checkLogin, checkRole } = require('../utils/authHandler');
 
 
 
 let userModel = require("../schemas/users");
 //- Strong password
 
-router.get("/", checkLogin, async function (req, res, next) {
+router.get("/", checkLogin, checkRole(["admin","mod"]), async function (req, res, next) {
   let users = await userModel
     .find({ isDeleted: false })
     .populate({
@@ -20,7 +21,7 @@ router.get("/", checkLogin, async function (req, res, next) {
   res.send(users);
 });
 
-router.get("/:id", checkLogin, async function (req, res, next) {
+router.get("/:id",checkLogin, checkRole(["admin","mod"]), async function (req, res, next) {
   try {
     let result = await userModel
       .find({ _id: req.params.id, isDeleted: false })
@@ -35,7 +36,7 @@ router.get("/:id", checkLogin, async function (req, res, next) {
   }
 });
 
-router.post("/", postUserValidator, validateResult,
+router.post("/", checkLogin, checkRole(["admin"]), postUserValidator, validateResult,
   async function (req, res, next) {
     try {
       let newItem = await userController.CreateAnUser(
@@ -53,7 +54,7 @@ router.post("/", postUserValidator, validateResult,
     }
   });
 
-router.put("/:id", async function (req, res, next) {
+router.put("/:id", checkLogin, checkRole(["admin"]), async function (req, res, next) {
   try {
     let id = req.params.id;
     let updatedItem = await userModel.findById(id);
@@ -72,7 +73,7 @@ router.put("/:id", async function (req, res, next) {
   }
 });
 
-router.delete("/:id", async function (req, res, next) {
+router.delete("/:id", checkLogin, checkRole(["admin"]), async function (req, res, next) {
   try {
     let id = req.params.id;
     let updatedItem = await userModel.findByIdAndUpdate(
@@ -87,6 +88,26 @@ router.delete("/:id", async function (req, res, next) {
   } catch (err) {
     res.status(400).send({ message: err.message });
   }
+});
+
+router.post("/change-password", checkLogin, async function (req,res,next){
+
+    let user = await userModel.findById(req.userId);
+
+    if(user.password !== req.body.oldpassword){
+        return res.status(400).send({
+            message:"Old password khong dung"
+        });
+    }
+
+    user.password = req.body.newpassword;
+
+    await user.save();
+
+    res.send({
+        message:"Doi mat khau thanh cong"
+    });
+
 });
 
 module.exports = router;

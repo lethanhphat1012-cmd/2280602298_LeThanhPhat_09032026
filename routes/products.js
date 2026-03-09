@@ -2,6 +2,7 @@ var express = require('express');
 let slugify = require('slugify')
 var router = express.Router();
 let modelProduct = require('../schemas/products')
+let { checkLogin, checkRole } = require('../utils/authHandler');
 
 
 /* GET users listing. */
@@ -41,22 +42,32 @@ router.get('/:id', async function (req, res, next) {
   }
 })
 
-router.post('/', async function (req, res, next) {
+router.post('/', checkLogin, checkRole(["admin","mod"]), async function (req, res, next) {
+
+  if(!req.body.title){
+    return res.status(400).send({
+      message: "Title is required"
+    })
+  }
+
   let newObj = new modelProduct({
     title: req.body.title,
     slug: slugify(req.body.title, {
-      replacement: '-', remove: undefined,
-      locale: 'vi', trim: true
-    }), price: req.body.price
-    ,
+      replacement: '-',
+      locale: 'vi',
+      trim: true
+    }),
+    price: req.body.price,
     description: req.body.description,
     category: req.body.category,
     images: req.body.images
   })
+
   await newObj.save();
   res.send(newObj)
+
 })
-router.put('/:id', async function (req, res, next) {
+router.put('/:id', checkLogin, checkRole(["admin","mod"]), async function (req, res, next) {
   let id = req.params.id;
   try {
     let id = req.params.id;
@@ -87,7 +98,7 @@ router.put('/:id', async function (req, res, next) {
     })
   }
 })
-router.delete('/:id', async function (req, res, next) {
+router.delete('/:id',checkLogin, checkRole(["admin"]), async function (req, res, next) {
   let id = req.params.id;
   try {
     let id = req.params.id;
